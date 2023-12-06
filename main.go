@@ -104,12 +104,12 @@ func main() {
 		// in a production application you should exchange ICE Candidates via OnICECandidate
 		<-gatherComplete
 		oneSdp, _ := peerConnection.LocalDescription().Unmarshal()
-		logx.Debugf("oneSdp: %+v\n", oneSdp)
-		bs, err := json.MarshalIndent(peerConnection.LocalDescription(), "", "\t")
-		if err != nil {
-			logx.Errorf("err: %+v\n", err)
-		}
-		logx.Debugf("server answer.bs: %s\n", bs)
+		logx.Debugf("server gen oneSdp: %+v\n", oneSdp)
+		// bs, err := json.MarshalIndent(peerConnection.LocalDescription(), "", "\t")
+		// if err != nil {
+		// 	logx.Errorf("err: %+v\n", err)
+		// }
+		// logx.Debugf("server answer.bs: %s\n", bs)
 		// Output the answer in base64 so we can paste it in browser
 		// fmt.Println(rtcsignal.Encode(*peerConnection.LocalDescription()))
 		c.JSON(200, peerConnection.LocalDescription())
@@ -219,11 +219,11 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			{
 				// URLs: []string{"stun:stun.l.google.com:19302"},
 
-				URLs: []string{"stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302", "stun:stun.l.google.com:19302", "stun:stun3.l.google.com:19302", "stun:stun4.l.google.com:19302"},
+				// URLs: []string{"stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302", "stun:stun.l.google.com:19302", "stun:stun3.l.google.com:19302", "stun:stun4.l.google.com:19302"},
 
-				// URLs:       []string{"turn:192.168.1.8:3478"},
-				// Username:   "foo",
-				// Credential: "bar",
+				URLs:       []string{"turn:192.168.1.8:3478"},
+				Username:   "foo",
+				Credential: "bar",
 			},
 		},
 	})
