@@ -31,7 +31,7 @@ pc.onicecandidate = event => {
 
 // Offer to receive 1 audio, and 1 video track
 //pc.addTransceiver('video', {'direction': 'sendrecv'})
-pc.addTransceiver('audio', {'direction': 'sendrecv'})
+// pc.addTransceiver('audio', {'direction': 'sendrecv'})
 
 // pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
 
