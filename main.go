@@ -173,19 +173,19 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 	// 	panic(err)
 	// }
 
-	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
-		RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMA, ClockRate: 8000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
-		PayloadType:        8,
-	}, webrtc.RTPCodecTypeAudio); err != nil {
-		panic(err)
-	}
-
 	// if err := m.RegisterCodec(webrtc.RTPCodecParameters{
-	// 	RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMU, ClockRate: 8000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
-	// 	PayloadType:        0,
+	// 	RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMA, ClockRate: 8000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
+	// 	PayloadType:        8,
 	// }, webrtc.RTPCodecTypeAudio); err != nil {
 	// 	panic(err)
 	// }
+
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypePCMU, ClockRate: 8000, Channels: 0, SDPFmtpLine: "", RTCPFeedback: nil},
+		PayloadType:        0,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		panic(err)
+	}
 
 	// if err := m.RegisterDefaultCodecs(); err != nil {
 	// 	panic(err.Error())
@@ -232,9 +232,10 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 	}
 
 	// pc.addTransceiver('audio', {'direction': 'sendrecv'})
-	if _, err = peerConnection.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio); err != nil {
-		panic(err)
-	}
+	// no need to specified AddTransceiverFromKind will also got audio stream transceiver
+	// if _, err = peerConnection.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio); err != nil {
+	// 	panic(err)
+	// }
 
 	// defer func() {
 	// 	if cErr := peerConnection.Close(); cErr != nil {
@@ -262,7 +263,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			}
 		}()
 
-		fmt.Printf("Track has started, of type %d: %s  codec %v\n", track.PayloadType(), track.Codec().RTPCodecCapability.MimeType, track.Codec())
+		logx.Debugfln("Track has started, of type %d: %s  codec %v\n", track.PayloadType(), track.Codec().RTPCodecCapability.MimeType, track.Codec())
 		for {
 			// Read RTP packets being sent to Pion
 			rtp, _, readErr := track.ReadRTP()
@@ -277,6 +278,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			switch track.Kind() {
 			case webrtc.RTPCodecTypeAudio:
 				logx.Debugf("rtp.String(): %+v\n", rtp.String())
+				oneFile.Write(rtp.Payload)
 				if isExist {
 					oneFile.Close()
 					return
