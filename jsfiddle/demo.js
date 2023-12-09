@@ -13,6 +13,7 @@ let log = msg => {
 	document.getElementById('div').innerHTML += msg + '<br>'
 }
 
+let localStream;
 pc.ontrack = function (event) {
 	var el = document.createElement(event.track.kind)
 	el.srcObject = event.streams[0]
@@ -22,12 +23,36 @@ pc.ontrack = function (event) {
 	document.getElementById('remoteVideos').appendChild(el)
 }
 
-pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
+pc.oniceconnectionstatechange = e => {
+	log(pc.iceConnectionState)
+	if (['closed', 'failed', 'disconnected'].includes(pc.iceConnectionState)) {
+		closeConnection();
+	}
+}
 pc.onicecandidate = event => {
 	if (event.candidate === null) {
 		document.getElementById('localSessionDescription').value = btoa(JSON.stringify(pc.localDescription))
 	}
 }
+window.onload = function() {
+	document.getElementById('disconnectButton').addEventListener('click', () => {
+		closeConnection()
+	});
+}
+
+function closeConnection() {
+	console.log('closing connection');
+	if (pc) {
+		pc.close();
+		pc = null;
+	}
+
+	if (localStream) {
+		localStream.getTracks().forEach(track => track.stop());
+		localStream = null;
+	}
+}
+
 
 // Offer to receive 1 audio, and 1 video track
 // pc.addTransceiver('video', {'direction': 'sendrecv'}) //!!!if you want to send audio only, client(frontend) must no adding this video transceiver !!!
@@ -50,6 +75,7 @@ pc.onicecandidate = event => {
 
 navigator.mediaDevices.getUserMedia({ video: false, audio: true })
 	.then(stream => {
+		localStream=stream
 		stream.getTracks().forEach(track => pc.addTrack(track, stream))
 		// stream.getTracks().forEach(function(track) {
 		// 	pc.addTrack(track, stream);

@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"time"
+	"webrtcdemo/wavwriter"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -22,6 +22,7 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/intervalpli"
 	"github.com/pion/rtcp"
+	"github.com/pion/webrtc/v3/pkg/media"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -247,9 +248,15 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 
 	isExist := false
 
-	oneFile, err := os.OpenFile("./server-got.pcm", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// oneFile, err := os.OpenFile("./server-got.pcm", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	log.Fatalf("failed opening file: %s", err)
+	// }
+
+	var oneWavWriter media.Writer
+	oneWavWriter, err = wavwriter.New("./server-got.wav", 8000, 1, wavwriter.WavAudioFormatPcmU)
 	if err != nil {
-		log.Fatalf("failed opening file: %s", err)
+		panic(err.Error())
 	}
 	peerConnection.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 		// Send a PLI on an interval so that the publisher is pushing a keyframe every rtcpPLIInterval
@@ -258,7 +265,8 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			for range ticker.C {
 				errSend := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}})
 				if errSend != nil {
-					fmt.Println(errSend)
+					logx.Errorf("errSend: %+v\n", errSend)
+					return
 				}
 			}
 		}()
@@ -270,7 +278,8 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			if readErr != nil {
 				logx.Errorf("err: %+v\n", err)
 				if readErr == io.EOF {
-					oneFile.Close()
+					// oneFile.Close()
+					oneWavWriter.Close()
 					return
 				}
 				panic(readErr)
@@ -278,9 +287,11 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			switch track.Kind() {
 			case webrtc.RTPCodecTypeAudio:
 				logx.Debugf("rtp.String(): %+v\n", rtp.String())
-				oneFile.Write(rtp.Payload)
+				oneWavWriter.WriteRTP(rtp)
+				// oneFile.Write(rtp.Payload)
 				if isExist {
-					oneFile.Close()
+					// oneFile.Close()
+					oneWavWriter.Close()
 					return
 				}
 				// saver.PushOpus(rtp)
