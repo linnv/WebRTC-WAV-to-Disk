@@ -58,7 +58,8 @@ func New(fileName string, sampleRate uint32, channelCount uint16, pcmType int) (
 	}
 	writer.fd = f
 	//BitDepth must be 16 bit there: while the encoded PCMA/PCMU data has a bit depth of 8 bits, the decoded audio data typically has a bit depth of 16 bits.
-	writer.encoder = wav.NewEncoder(f, int(sampleRate), 16, int(channelCount), pcmType)
+	//will convert to pcm raw before writting to file
+	writer.encoder = wav.NewEncoder(f, int(sampleRate), 16, int(channelCount), WavAudioFormatPcmRaw)
 	return writer, nil
 }
 
