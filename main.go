@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"strconv"
 	"time"
 	"webrtcdemo/wavwriter"
 
@@ -222,7 +223,8 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 
 				// URLs: []string{"stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302", "stun:stun.l.google.com:19302", "stun:stun3.l.google.com:19302", "stun:stun4.l.google.com:19302"},
 
-				URLs:       []string{"turn:192.168.1.8:3478"},
+				// URLs:       []string{"turn:192.168.1.8:3478"},
+				URLs:       []string{"turn:23.105.204.193:13478"},
 				Username:   "foo",
 				Credential: "bar",
 			},
@@ -230,6 +232,41 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 	})
 	if err != nil {
 		panic(err)
+	}
+
+	{
+
+		// Register data channel creation handling
+		peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
+			logx.Debugf("New DataChannel %s %d\n", d.Label(), d.ID())
+
+			// Register channel opening handling
+			d.OnOpen(func() {
+				logx.Debugf("Data channel '%s'-'%d' open. Random messages will now be sent to any connected DataChannels every 5 seconds\n", d.Label(), d.ID())
+
+				count := 0
+				for range time.NewTicker(6 * time.Second).C {
+					message := strconv.FormatInt(int64(time.Now().UnixNano()), 10)
+					logx.Debugf("Sending '%s'\n", message)
+
+					// Send the message as text
+					sendErr := d.SendText(message)
+					if sendErr != nil {
+						logx.Errorf("sendErr: %+v\n", sendErr)
+						return
+					}
+					count++
+					if count > 3 {
+						return
+					}
+				}
+			})
+
+			// Register text message handling
+			d.OnMessage(func(msg webrtc.DataChannelMessage) {
+				logx.Debugf("Message from DataChannel '%s': '%s'\n", d.Label(), string(msg.Data))
+			})
+		})
 	}
 
 	// pc.addTransceiver('audio', {'direction': 'sendrecv'})
@@ -266,6 +303,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 				errSend := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}})
 				if errSend != nil {
 					logx.Errorf("errSend: %+v\n", errSend)
+					oneWavWriter.Close()
 					return
 				}
 			}
@@ -286,7 +324,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			}
 			switch track.Kind() {
 			case webrtc.RTPCodecTypeAudio:
-				logx.Debugf("rtp.String(): %+v\n", rtp.String())
+				// logx.Debugf("rtp.String(): %+v\n", rtp.String())
 				oneWavWriter.WriteRTP(rtp)
 				// oneFile.Write(rtp.Payload)
 				if isExist {
@@ -411,6 +449,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 			// Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
 			logx.Debugf("Peer Connection has gone to failed exiting")
 			logx.Flush()
+			oneWavWriter.Close()
 			os.Exit(0)
 		}
 	})

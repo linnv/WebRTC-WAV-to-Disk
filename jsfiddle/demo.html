@@ -19,6 +19,13 @@ body {
 	<body>
 		<h1>{{ .Title }}</h1>
 		<p><a href="/">< Home</a></p> 
+		<div>
+			<div id="chat-area">
+				<ul id="message-list"></ul>
+			</div>
+			<input id="message-input" type="text" placeholder="Type your message here...">
+			<button id="send-button">Send</button>
+		</div>
 
 		<div>
 			Browser base64 Session Description<br />
