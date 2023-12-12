@@ -1,8 +1,18 @@
 /* eslint-env browser */
 
-function logWithTimestamp(message) {
+// function logWithTimestamp(message) {
+// 	const now = new Date();
+// 	console.log(`${now.toISOString()}: ${message}`);
+// }
+// function logWithTimestamp(...messages) {
+// 	const now = new Date();
+// 	console.log(`${now.toISOString()}: ${messages.map(message => typeof message === 'object' ? JSON.stringify(message) : message).join(' ')}`);
+// }
+function logWithTimestamp(...messages) {
 	const now = new Date();
-	console.log(`${now.toISOString()}: ${message}`);
+	const stack = new Error().stack;
+	const line = stack.split('\n')[2].trim();
+	console.log(`${now.toISOString()} (${line}): ${messages.map(message => typeof message === 'object' ? JSON.stringify(message) : message).join(' ')}`);
 }
 
 // logWithTimestamp("This is a message.");  // Outputs: "2023-12-12T20:44:29.123Z: This is a message."
@@ -47,7 +57,47 @@ window.onload = function() {
 		if (event.candidate === null) {
 			document.getElementById('localSessionDescription').value = btoa(JSON.stringify(pc.localDescription))
 		}
+		logWithTimestamp(`ICEcandidateInfo: ${event.candidate ? event.candidate.candidate : '(null)'}`)	
 	}
+
+	// When ICE gathering state changes, check for completion
+	pc.oniceconnectionstatechange = () => {
+		if (pc.iceConnectionState === 'completed' || pc.iceConnectionState === 'connected') {
+			// ICE gathering completed, log selected candidate pair
+			pc.getStats().then(stats => {
+				let selectedPair = [...stats.values()].find(stat =>
+					stat.type === 'candidate-pair' && stat.state === 'succeeded'
+				);
+
+				if (selectedPair) {
+					logWithTimestamp('selectedPair:',selectedPair)
+					logWithTimestamp('Selected local candidate:', stats.get(selectedPair.localCandidateId));
+					logWithTimestamp('Selected remote candidate:', stats.get(selectedPair.remoteCandidateId));
+				} else {
+					logWithTimestamp('No candidate pairs found');
+				}
+			});
+
+			pc.getStats(null).then(stats => {
+				stats.forEach(report => {
+					if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+						let localCandidateId = report.localCandidateId;
+						let remoteCandidateId = report.remoteCandidateId;
+
+						let localCandidateInfo = stats.get(localCandidateId);
+						let remoteCandidateInfo = stats.get(remoteCandidateId);
+						logWithTimestamp("localCandidateInfo: ",localCandidateInfo)
+						logWithTimestamp("remoteCandidateInfo: ",remoteCandidateInfo)
+
+						logWithTimestamp(`newLocal candidate: ${localCandidateInfo.ip}:${localCandidateInfo.port}`);
+						logWithTimestamp(`newRemote candidate: ${remoteCandidateInfo.ip}:${remoteCandidateInfo.port}`);
+					}
+				});
+			});
+		}
+	};
+
+
 	navigator.mediaDevices.getUserMedia({ video: false, audio: true })
 		.then(stream => {
 			localStream=stream

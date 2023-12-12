@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -105,16 +106,24 @@ func main() {
 		// we do this because we only can exchange one signaling message
 		// in a production application you should exchange ICE Candidates via OnICECandidate
 		<-gatherComplete
-		oneSdp, _ := peerConnection.LocalDescription().Unmarshal()
-		logx.Debugf("server gen oneSdp: %+v\n", oneSdp)
+		// bs, _ := peerConnection.LocalDescription().Type.MarshalJSON()
+		// oneSdp, _ := peerConnection.LocalDescription().Unmarshal()
+		// logx.Debugf("server gen oneSdp: %+v\n", oneSdp)
 		// bs, err := json.MarshalIndent(peerConnection.LocalDescription(), "", "\t")
 		// if err != nil {
 		// 	logx.Errorf("err: %+v\n", err)
 		// }
-		// logx.Debugf("server answer.bs: %s\n", bs)
 		// Output the answer in base64 so we can paste it in browser
 		// fmt.Println(rtcsignal.Encode(*peerConnection.LocalDescription()))
-		c.JSON(200, peerConnection.LocalDescription())
+
+		response, err := json.Marshal(*peerConnection.LocalDescription())
+		logx.Debugf("server answer.bs: %s\n", response)
+		w := c.Writer
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write(response); err != nil {
+			panic(err)
+		}
+		// c.JSON(200, peerConnection.LocalDescription())
 		// c.JSON(200, gin.H{
 		// 	"message": "pong",
 		// })
@@ -233,6 +242,20 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 	if err != nil {
 		panic(err)
 	}
+	{
+		// When ICE connection state changes, print it
+		peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
+			fmt.Printf("ICE Connection State has changed: %s\n", connectionState.String())
+			if connectionState == webrtc.ICEConnectionStateConnected {
+				fmt.Println("ICE Connection State is CONNECTED, gathering stats...")
+				// Get the stats
+				statsReport := peerConnection.GetStats()
+				for k, v := range statsReport {
+					logx.Debugf("statsReport %+v: %s\n", k, v)
+				}
+			}
+		})
+	}
 
 	{
 
@@ -256,7 +279,7 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 						return
 					}
 					count++
-					if count > 3 {
+					if count > 1 {
 						return
 					}
 				}
@@ -432,9 +455,31 @@ func NewRtcConn() *webrtc.PeerConnection { //nolint
 	// Set the handler for ICE connection state
 	// This will notify you when the peer has connected/disconnected
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		logx.Debugf("Connection State has changed %s \n", connectionState.String())
+		logx.Debugf("OnICEConnectionStateChange State has changed %s \n", connectionState.String())
 		if connectionState == webrtc.ICEConnectionStateConnected {
 			iceConnectedCtxCancel()
+			statsReport := peerConnection.GetStats()
+			for id, report := range statsReport {
+				switch v := report.(type) {
+				case *webrtc.ICECandidateStats, webrtc.ICECandidateStats:
+					// logx.Debugf("CandidateStats: ID: %s, Report: %+v\n", id, v)
+				case *webrtc.ICECandidatePairStats, webrtc.ICECandidatePairStats:
+					_, _ = v, id
+					// logx.Debugf("CandidatePairStats: ID: %s, Report: %+v\n\n", id, v)
+					if candidatePair, ok := report.(webrtc.ICECandidatePairStats); ok {
+						if candidatePair.State == webrtc.StatsICECandidatePairStateSucceeded {
+							logx.Debugf("candidatePair: %+v\n", candidatePair)
+							logx.Debugf(" statsReport local[%s]: %+v\n", candidatePair.LocalCandidateID, statsReport[candidatePair.LocalCandidateID])
+							logx.Debugf(" statsReport remote[%s]: %+v\n\n", candidatePair.RemoteCandidateID, statsReport[candidatePair.RemoteCandidateID])
+						}
+					}
+				case *webrtc.DataChannelStats, webrtc.DataChannelStats:
+					// logx.Debugf("DataChannelStats: ID: %s, Report: %+v\n", id, v)
+				// Add more cases as needed
+				default:
+					// logx.Debugf("Other type of stats: ID: %s, Report: %+v\n", id, v)
+				}
+			}
 		}
 	})
 
