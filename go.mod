@@ -1,4 +1,4 @@
-module webrtcdemo
+module webrtcwavtodisk
 
 go 1.21.1
 
