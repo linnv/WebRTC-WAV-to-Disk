@@ -1,4 +1,4 @@
-module webrtcwavtodisk
+module github.com/linnv/webrtcwavtodisk
 
 go 1.21.1
 
