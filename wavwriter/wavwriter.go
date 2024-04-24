@@ -149,6 +149,7 @@ func (i *WavWriter) Close() error {
 	}
 
 	if i.fd != nil {
+		i.fd.Sync()
 		return i.fd.Close()
 	}
 	return nil
